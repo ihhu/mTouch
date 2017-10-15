@@ -1,6 +1,5 @@
 (function(){
 	"use strict";
-	
 	if(!window.ontouchstart){return;}
 	const _=function(){
 		let type=function(obj){
