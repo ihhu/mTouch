@@ -122,7 +122,7 @@
 				direction=(yRes>0?"Down":"Up")
 			}
 			return direction;	
-		}
+		},
 		/**
 		 * 获取两点之间距离
 		 * @param {Number} sX 起始点x坐标
@@ -319,7 +319,11 @@
 		}
 	}();
 	
-	
+	class Touch{
+		constructor(selector){
+			
+		}
+	}
 	
 	
 })();
