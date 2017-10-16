@@ -1,6 +1,6 @@
 (function(){
 	"use strict";
-	if(!window.ontouchstart){return;}
+	//if(!window.ontouchstart){return;}
 	let _wrapped=null;
 	const _=function(){
 		let type=function(obj){
@@ -54,7 +54,7 @@
 	};
 	
 	const extend = function(obj) {
-		each(slice.call(arguments,1), function(i,value) {
+		each([].slice.call(arguments,1), function(i,value) {
 			for(let prop in value) {
 				obj[prop] = value[prop];
 			}
@@ -93,7 +93,7 @@
 		 */
 		getPosInfo(event){
 			let _touches=event.touches;
-			if(_touches||_touches.length===0){
+			if(!_touches||_touches.length===0){
 				return;
 			}
 			return {
@@ -322,7 +322,7 @@
 	
 	class Touch{
 		constructor(selector){
-			this.el=selector instanceof HEMLElement?selector:
+			this.el=selector instanceof HTMLElement?selector:
 			_.isString(selector)?document.querySelector(selector):null;
 			if(_.type(this.el)==="null"){
 				throw new Error("you must specify a particular selector or a particular DOM object");
@@ -343,7 +343,7 @@
 			this.endPos={};
 			this.preTapPosition={};
 			
-			ths.cfg={
+			this.cfg={
 				doubleTapTime:400,
 				longTapTime:700
 			}
@@ -491,7 +491,7 @@
 				}
 
 				//pinch
-				_wrapped=wrapEvent(event,{
+				_wrapped=_.wrapEvent(event,{
 					el:self.el,
 					type:"pinch",
 					scale:_.getLength(v)/self.pinchStartLen,
@@ -502,7 +502,7 @@
 				Event.trigger("pinch",target,_wrapped);
 
 				//rotate
-				_wrapped=wrapEvent(event,{
+				_wrapped=_.wrapEvent(event,{
 					el:self.el,
 					type:"rotate",
 					angle:_.getRotateAngle(v,preV),
@@ -514,6 +514,7 @@
 				event.preventDefault();
 			}
 			self.endPos=posNow;
+			event.preventDefault();
 			event.stopPropagation();
 
 		}
@@ -538,7 +539,7 @@
 			
 			if(direction!==""){
 				self.swipeTimeout=setTimeout(()=>{
-					_wrapped=wrapEvent(event,{
+					_wrapped=_.wrapEvent(event,{
 						el:self.el,
 						type:"swipe",
 						timeStr:_.getTime(),
@@ -549,7 +550,7 @@
 
 					//获取具体方向
 					callback=self[`swipe${direction}`];
-					_wrapped=wrapEvent(event,{
+					_wrapped=_.wrapEvent(event,{
 						el:self.el,
 						type:`swipe${direction}`,
 						timeStr:_.getTime(),
@@ -558,7 +559,7 @@
 					});
 					Event.trigger(`swipe${direction}`,target,_wrapped);
 
-					_wrapped=wrapEvent(event,{
+					_wrapped=_.wrapEvent(event,{
 						el:self.el,
 						type:"swipeEnd",
 						timeStr:_.getTime(),
@@ -570,7 +571,8 @@
 			}else if(!self.triggedLongTap){
 				self.tapTimeout=setTimeout(()=>{
 					if(self.isDoubleTap){
-						_wrapped=wrapEvent(event,{
+						console.log("double");
+						_wrapped=_.wrapEvent(event,{
 							el:self.el,
 							type:"doubleTap",
 							timeStr:_.getTime(),
@@ -582,7 +584,7 @@
 						self.isDoubleTap=false;
 					}else{
 						self.singleTapTimeout=setTimeout(()=>{
-							_wrapped=wrapEvent(event,{
+							_wrapped=_.wrapEvent(event,{
 								el:self.el,
 								type:"singleTap",
 								timeStr:_.getTime(),
@@ -591,7 +593,7 @@
 							});
 							Event.trigger("singleTap",target,_wrapped);
 							self.isDoubleTap=false;
-						},100)
+						},250)
 					}
 				},0)
 			}
@@ -600,14 +602,14 @@
 			event.stopPropagation();
 		}
 		_cancelLongTap(){
-			if(_.type(this.longTapTimeout)=="null"){
-				return;
-			}
 			clearTimeout(this.longTapTimeout);
 			
 		}
 	}
-
-	return Touch;
+	if (typeof module !== 'undefined' && typeof exports === 'object') {
+        module.exports = Touch;
+    } else {
+        window.MTouch = Touch;
+    }
 	
 })();
