@@ -1,6 +1,7 @@
 (function(){
 	"use strict";
 	if(!window.ontouchstart){return;}
+	let _wrapped=null;
 	const _=function(){
 		let type=function(obj){
    			//'boolean', 'number', 'string', 'function', 'array', 'date', 'regexp', 'object', 'error'
@@ -82,7 +83,7 @@
 		 * 获取当前时间距1970/1/1时间戳
 		 * @return {Number}	时间戳
 		 */
-		getTime:(){
+		getTime(){
 			return +new Date();
 		},
 		/**
@@ -274,7 +275,7 @@
 			},
 			/**
 			 * remove an event handle
-			 * @param {Style} type
+			 * @param {String} type
 			 * @param {String|Function} selector
 			 */
 			remove(type,selector){
@@ -321,9 +322,292 @@
 	
 	class Touch{
 		constructor(selector){
+			this.el=selector instanceof HEMLElement?selector:
+			_.isString(selector)?document.querySelector(selector):null;
+			if(_.type(this.el)==="null"){
+				throw new Error("you must specify a particular selector or a particular DOM object");
+			}
+			this.scale=1;
+			this.pinchStartLen=null;
+			this.isDoubleTap=false;
+			this.triggedSwipeStart=false;
+			this.triggedLongTap=false;
+			this.delta=null;
+			this.last=null;
+			this.now=null;
+			this.tapTimeout=null;
+			this.singleTapTimeout=null;
+			this.longTapTimeout=null;
+			this.swipeTimeout=null;
+			this.startPos={};
+			this.endPos={};
+			this.preTapPosition={};
+			
+			ths.cfg={
+				doubleTapTime:400,
+				longTapTime:700
+			}
+
+			_.bind(this.el,"touchstart",this._start.bind(this));
+			_.bind(this.el,"touchmove",this._move.bind(this));
+			_.bind(this.el,"touchcancel",this._cancel.bind(this));
+			_.bind(this.el,"touchend",this._end.bind(this));
+
+
+		}
+		/**
+		 * set config
+		 * @param {Object} options 
+		 * @returns {Object} this
+		 * @memberof Touch
+		 */
+		config(option={}){
+			if(!_.isObject(option)){
+				return this;
+			}
+			for(let i in option){
+				this.cfg[i]=option[i];
+			}
+			return this;
+		}
+		/**
+		 * on Events
+		 * @param {String} type 
+		 * @param {Element} el 
+		 * @param {Function} callback 
+		 * @returns {Object} this
+		 * @memberof Touch
+		 */
+		on(type,el,callback){
+			let len=arguments.length;
+			len===2?Event.add(type,el):Event.add(type,el,callback);
+			return this;
+		}
+		/**
+		 * 
+		 * @param {String} type 
+		 * @param {String} selector 
+		 * @memberof Touch
+		 */
+		off(type,selector){
+			Event.remove(type,selector);
+			return this;
+		}
+		_start(event){
+			if(!event.touches||event.touches.length===0){
+				return;
+			}
+			let self=this;
+			let otherToucher,v,preV=this.preV,
+				target=event.target;
+			
+			self.now=_.getTime();
+			self.startPos=_.getPosInfo(event);
+			self.delta=self.now-(self.last||self.now);
+			self.triggedSwipeStart=false;
+			self.triggedLongTap=false;
+
+			//  快速双击
+            if (JSON.stringify(self.preTapPosition).length > 2 && self.delta < self.cfg.doubleTapTime && _.getDistance(self.preTapPosition.clientX, self.preTapPosition.clientY, self.startPos.clientX, self.startPos.clientY) < 25) {
+                self.isDoubleTap = true;
+            }
+
+			//长按
+			self.longTapTimeout=setTimeout(()=>{
+				_wrapped={
+					el:self.el,
+					type:"longTap",
+					timeStr:_.getTime(),
+					position:self.startPos,
+					originalEvent:event
+				};
+				Event.trigger("longTap",target,_wrapped);
+				self.triggedLongTap=true;
+			},self.cfg.longTapTime)
+			
+			//多手指
+			if(event.touches.length>1){
+				self._cancelLongTap();
+				otherToucher=event.touches[1];
+				v={
+					x:otherToucher.pageX-self.startPos.pageX,
+					y:otherToucher.pageY-self.startPos.pageY
+				};
+				this.preV=v;
+				self.pinchStartLen=_.getLength(v);
+				self.isDoubleTap=false;
+			}
+
+			self.last=self.now;
+			self.preTapPosition=self.startPos;
+
+			event.stopPropagation();
+
+		}
+		_move(event){
+			if(!event.touches||event.touches.length===0){
+				return;
+			}
+			let v,otherToucher;
+			let self=this;
+			let len=event.touches.length,
+				posNow=_.getPosInfo(event),
+				preV=self.preV;
+			let [currentX,currentY]=[posNow.pageX,posNow.pageY];
+			let target=event.target;			
+
+			//取消长按事件和双击
+			self._cancelLongTap();
+			self.isDoubleTap=false;
+
+			//触发swipeStart
+			if(!self.triggedSwipeStart){
+				_wrapped={
+					el:self.el,
+					type:"swipeStart",
+					timeStr:_.getTime(),
+					position:posNow,
+					originalEvent:event
+				};
+				Event.trigger("swipeStart",target,_wrapped);
+				self.triggedSwipeStart=true;
+			}else{
+				_wrapped={
+					el:self.el,
+					type:"swipe",
+					timeStr:_.getTime(),
+					position:posNow,
+					originalEvent:event
+				};
+				Event.trigger("swipe",target,_wrapped);
+			}
+
+			//trigger pinch and rotate
+			if(len>1){
+				otherToucher=event.touches[1];
+				v={
+					x:otherToucher.pageX-currentX,
+					y:otherToucher.pageY-currentY
+				}
+
+				//pinch
+				_wrapped=wrapEvent(event,{
+					el:self.el,
+					type:"pinch",
+					scale:_.getLength(v)/self.pinchStartLen,
+					timeStr:_.getTime(),
+					position:posNow,
+					originalEvent:event
+				});
+				Event.trigger("pinch",target,_wrapped);
+
+				//rotate
+				_wrapped=wrapEvent(event,{
+					el:self.el,
+					type:"rotate",
+					angle:_.getRotateAngle(v,preV),
+					timeStr:_.getTime(),
+					position:posNow,
+					originalEvent:event
+				});
+				Event.trigger("rotate",target,_wrapped);
+				event.preventDefault();
+			}
+			self.endPos=posNow;
+			event.stopPropagation();
+
+		}
+		_cancel(event){
+			clearTimeout(this.longTapTimeout);
+			clearTimeout(this.tapTimeout);
+			clearTimeout(this.swipeTimeout);
+			clearTimeout(this.singleTapTimeout);			
+			event.stopPropagation();
+		}
+		_end(event){
+			if(!event.changedTouches){
+				return;
+			}
+
+			//取消长按
+			this._cancelLongTap();
+			
+			let self=this;
+			let direction=_.getDirection(self.endPos.clientX,self.endPos.clientY,self.startPos.clientX,self.startPos.clientY);
+			let callback,target=event.target;
+			
+			if(direction!==""){
+				self.swipeTimeout=setTimeout(()=>{
+					_wrapped=wrapEvent(event,{
+						el:self.el,
+						type:"swipe",
+						timeStr:_.getTime(),
+						position:self.endPos,
+						originalEvent:event
+					});
+					Event.trigger("swipe",target,_wrapped);
+
+					//获取具体方向
+					callback=self[`swipe${direction}`];
+					_wrapped=wrapEvent(event,{
+						el:self.el,
+						type:`swipe${direction}`,
+						timeStr:_.getTime(),
+						position:self.endPos,
+						originalEvent:event
+					});
+					Event.trigger(`swipe${direction}`,target,_wrapped);
+
+					_wrapped=wrapEvent(event,{
+						el:self.el,
+						type:"swipeEnd",
+						timeStr:_.getTime(),
+						position:self.endPos,
+						originalEvent:event
+					});
+					Event.trigger("swipeEnd",target,_wrapped);
+				},0)
+			}else if(!self.triggedLongTap){
+				self.tapTimeout=setTimeout(()=>{
+					if(self.isDoubleTap){
+						_wrapped=wrapEvent(event,{
+							el:self.el,
+							type:"doubleTap",
+							timeStr:_.getTime(),
+							position:self.startPos,
+							originalEvent:event
+						});
+						Event.trigger("doubleTap",target,_wrapped);
+						clearTimeout(self.singleTapTimeout);
+						self.isDoubleTap=false;
+					}else{
+						self.singleTapTimeout=setTimeout(()=>{
+							_wrapped=wrapEvent(event,{
+								el:self.el,
+								type:"singleTap",
+								timeStr:_.getTime(),
+								position:self.startPos,
+								originalEvent:event
+							});
+							Event.trigger("singleTap",target,_wrapped);
+							self.isDoubleTap=false;
+						},100)
+					}
+				},0)
+			}
+			this.startPos={};
+			this.endPos={};
+			event.stopPropagation();
+		}
+		_cancelLongTap(){
+			if(_.type(this.longTapTimeout)=="null"){
+				return;
+			}
+			clearTimeout(this.longTapTimeout);
 			
 		}
 	}
-	
+
+	return Touch;
 	
 })();
