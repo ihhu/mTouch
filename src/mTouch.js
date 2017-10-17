@@ -166,7 +166,7 @@
 			if(mr===0){return 0;}
 			
 			let r=this.getVector(v1.x,v1.y,v2.x,v2.y)/mr;
-			if(v>1){
+			if(r>1){
 				r=1;
 			}
 			return Math.acos(r);
@@ -409,10 +409,11 @@
 
 			//  快速双击
             if (JSON.stringify(self.preTapPosition).length > 2 && self.delta < self.cfg.doubleTapTime && _.getDistance(self.preTapPosition.clientX, self.preTapPosition.clientY, self.startPos.clientX, self.startPos.clientY) < 25) {
-                self.isDoubleTap = true;
-            }
-
+				self.isDoubleTap = true;
+			}
+			
 			//长按
+			self._cancelLongTap();
 			self.longTapTimeout=setTimeout(()=>{
 				_wrapped={
 					el:self.el,
@@ -442,6 +443,7 @@
 			self.preTapPosition=self.startPos;
 
 			event.stopPropagation();
+			//event.preventDefault();
 
 		}
 		_move(event){
@@ -511,7 +513,7 @@
 					originalEvent:event
 				});
 				Event.trigger("rotate",target,_wrapped);
-				event.preventDefault();
+				
 			}
 			self.endPos=posNow;
 			event.preventDefault();
@@ -520,10 +522,10 @@
 		}
 		_cancel(event){
 			clearTimeout(this.longTapTimeout);
-			clearTimeout(this.tapTimeout);
-			clearTimeout(this.swipeTimeout);
-			clearTimeout(this.singleTapTimeout);			
-			event.stopPropagation();
+            clearTimeout(this.tapTimeout);
+            clearTimeout(this.swipeTimeout);
+            clearTimeout(this.singleTapTimeout);
+            event.stopPropagation();
 		}
 		_end(event){
 			if(!event.changedTouches){
@@ -571,7 +573,6 @@
 			}else if(!self.triggedLongTap){
 				self.tapTimeout=setTimeout(()=>{
 					if(self.isDoubleTap){
-						console.log("double");
 						_wrapped=_.wrapEvent(event,{
 							el:self.el,
 							type:"doubleTap",
@@ -593,7 +594,7 @@
 							});
 							Event.trigger("singleTap",target,_wrapped);
 							self.isDoubleTap=false;
-						},250)
+						},200)
 					}
 				},0)
 			}

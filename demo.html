@@ -16,47 +16,53 @@
 		fdasfds
 		<p class="p"></p>
 	</div>
-    <script src="./src/mTouch.min.js"></script>
+    <script src="./dist/bundle.js"></script>
     <script>
         var touch=new MTouch("#wrap");
         var wrap=document.querySelector("#wrap");
         var p=wrap.querySelector(".p");
         touch.on("singleTap",function(event){
-        	console.log(event);
+        	console.log(event.type);
         	wrap.innerHTML=event.type;
         }).on("doubleTap",function(event){
-            console.log(event);
+            console.log(event.type);
         	wrap.innerHTML=event.type;
         }).on("longTap",function(event){
-            console.log(event);
+            console.log(event.type);
         	wrap.innerHTML=event.type;
         }).on("swipeUp",function(ev){
-        	console.log(ev);
+        	console.log(ev.type);
         	wrap.innerHTML=ev.type;
         }).on("swipeDown",function(ev){
-        	console.log(ev);
+        	console.log(ev.type);
         	wrap.innerHTML=ev.type;
         }).on("swipeLeft",function(ev){
-        	console.log(ev);
+        	console.log(ev.type);
         	wrap.innerHTML=ev.type;
         })
         .on("swipeRight",function(ev){
-        	console.log(ev);
+        	console.log(ev.type);
         	wrap.innerHTML=ev.type;
         })
         .on("swipeStart",function(ev){
-        	console.log(ev);
+        	console.log(ev.type);
         	p.innerHTML=ev.type;
         	wrap.appendChild(p);
         })
         .on("swipeEnd",function(ev){
-        	console.log(ev);
+        	console.log(ev.type);
         	p.innerHTML=ev.type;
         	
         	wrap.appendChild(p)
         })
+        .on("pinch",function(ev){
+            console.log(ev.type);
+            wrap.innerHTML=ev.type;
+        	p.innerHTML=ev.scale;        	
+        	wrap.appendChild(p)
+        })
         .on("rotate",function(ev){
-            console.log(ev);
+            console.log(ev.type);
             wrap.innerHTML=ev.type;
         	p.innerHTML=ev.angle;        	
         	wrap.appendChild(p)
